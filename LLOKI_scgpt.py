@@ -17,7 +17,6 @@ import torch
 import torch.nn.functional as F
 import torch.distributed as dist
 from torch_geometric.nn.inits import glorot, zeros
-import wandb
 from pathlib import Path
 from models import scFP_Trainer
 from misc.utils import set_seed, set_filename, setup_logger
