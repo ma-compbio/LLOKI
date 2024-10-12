@@ -36,8 +36,8 @@ class embedder:
         if self.adata.obs['class'].dtype != int:
             self.label_encoding()
 
-        self.preprocess(HVG=self.args.HVG, size_factors=self.args.sf, logtrans_input=self.args.log, normalize_input=self.args.normal)
-        self.adata = drop_data(self.adata, rate=self.args.drop_rate)
+        self.preprocess()
+        self.adata = drop_data(self.adata, rate=0)
 
     def label_encoding(self):
         self.adata.obs['original_class'] = self.adata.obs['class'].copy()
@@ -47,7 +47,7 @@ class embedder:
         celltype = label_encoder.fit_transform(celltype)
         self.adata.obs['class'] = celltype
 
-    def preprocess(self, HVG=2000, size_factors=True, logtrans_input=True, normalize_input=False):
+    def preprocess(self, HVG=2000, size_factors=False, logtrans_input=True, normalize_input=False):
         sc.pp.filter_cells(self.adata, min_counts=1)
         sc.pp.filter_genes(self.adata, min_counts=1)
         
@@ -71,11 +71,7 @@ class embedder:
             self.label_encoding()
 
         X_imputed = self.adata.obsm['denoised']
-        if self.args.drop_rate != 0.0:
-            X_test = self.adata.X
-            drop_index = self.adata.uns['drop_index']
 
-            rmse, median_l1_distance, cosine_similarity = imputation_error(X_imputed, X_test, drop_index)
 
         # clustering
         celltype = self.adata.obs['class'].values
@@ -101,23 +97,11 @@ class embedder:
         reduced_ca, reduced_ma_f1, reduced_mi_f1 = cluster_acc(celltype, y_pred)
         
 
-        print(f"Dataset: {self.args.name}, Drop: {self.args.drop_rate}, Alpha: {self.args.alpha}")
+        print(f"Dataset: {self.args.name}, Alpha: {self.args.alpha}")
         print()
-        if self.args.drop_rate != 0.0:
-            print("RMSE : {:.4f} / Median L1 Dist : {:.4f} / Cos-Sim : {:.4f}".format(rmse, median_l1_distance, cosine_similarity))
-        
+
         print("Imputed --> ARI : {:.4f} / NMI : {:.4f} / ca : {:.4f}\n".format(imputed_ari, imputed_nmi, imputed_ca))
         print("Reduced --> ARI : {:.4f} / NMI : {:.4f} / ca : {:.4f}\n".format(reduced_ari, reduced_nmi, reduced_ca))
 
-        with open(self.result_path, 'a+') as f:
-            f.write("{}\n".format(self.config_str))
-            if self.args.drop_rate != 0.0:
-                f.write("Rate {} -> RMSE : {:.4f} / Median L1 Dist : {:.4f} / Cos-Sim : {:.4f}\n".format(self.args.drop_rate, rmse, median_l1_distance, cosine_similarity))
-            f.write("(Imputed) Rate {} -> ARI : {:.4f} / NMI : {:.4f} /  ca : {:.4f} / ma-f1 : {:.4f} / mi-f1 : {:.4f}\n".format(self.args.drop_rate, imputed_ari, imputed_nmi, imputed_ca, imputed_ma_f1, imputed_mi_f1))            
-            f.write("(Reduced) Rate {} -> ARI : {:.4f} / NMI : {:.4f}  / ca : {:.4f} / ma-f1 : {:.4f} / mi-f1 : {:.4f}\n".format(self.args.drop_rate, reduced_ari, reduced_nmi, reduced_ca, reduced_ma_f1, reduced_mi_f1))            
-            f.write("\n")
-        
-        if self.args.drop_rate != 0.0:
-            return [rmse, median_l1_distance, cosine_similarity, imputed_ari, imputed_nmi, imputed_ca], [reduced_ari, reduced_nmi, reduced_ca]
-        else:
-            return [imputed_ari, imputed_nmi, imputed_ca], [reduced_ari, reduced_nmi, reduced_ca]
+     
+        return [imputed_ari, imputed_nmi, imputed_ca], [reduced_ari, reduced_nmi, reduced_ca]
