@@ -93,13 +93,6 @@ def main(args_lst=None, data_dir=None, output_dir=None, model_dir=None):
         print("CUDA is not available.")
     
     # h5ad_files = glob.glob(os.path.join(data_dir, '*.h5ad'))
-    # h5ad_files = ["/work/magroup/skrieger/LLOKI_datasets/Three-slices/smp.h5ad","/work/magroup/skrieger/LLOKI_datasets/Three-slices/M500.h5ad","/work/magroup/skrieger/LLOKI_datasets/Three-slices/M1100.h5ad"]
-    # h5ad_files = ["/work/magroup/skrieger/LLOKI_datasets/Five-slices/xenium.h5ad","/work/magroup/skrieger/LLOKI_datasets/Five-slices/cosmx.h5ad"]
-    # h5ad_files = ["/work/magroup/skrieger/LLOKI_datasets/Three-slices/smp.h5ad","/work/magroup/skrieger/LLOKI_datasets/Three-slices/M1100.h5ad"]
-    # h5ad_files = ["/work/magroup/skrieger/LLOKI_datasets/Three-slices/M1100.h5ad","/work/magroup/skrieger/LLOKI_datasets/Five-slices/cosmx.h5ad"]
-    # h5ad_files = ["/work/magroup/skrieger/LLOKI_datasets/Three-slices/smp.h5ad","/work/magroup/skrieger/LLOKI_datasets/Three-slices/M1100.h5ad","/work/magroup/skrieger/LLOKI_datasets/Five-slices/cosmx.h5ad","/work/magroup/skrieger/LLOKI_datasets/Five-slices/xenium.h5ad"]
-    # h5ad_files = ["/work/magroup/skrieger/LLOKI_datasets/Three-slices/M500.h5ad","/work/magroup/skrieger/LLOKI_datasets/Five-slices/xenium.h5ad"]
-    h5ad_files = ["/work/magroup/skrieger/LLOKI_datasets/Five-slices/M500.h5ad","/work/magroup/skrieger/LLOKI_datasets/Five-slices/xenium_half.h5ad","/work/magroup/skrieger/LLOKI_datasets/Five-slices/cosmx_cts.h5ad","/work/magroup/skrieger/LLOKI_datasets/Five-slices/M500.h5ad"]
     torch.set_num_threads(3)
     imputed_ari_list, imputed_nmi_list, imputed_ca_list = [], [], []
     reduced_ari_list, reduced_nmi_list, reduced_ca_list = [], [], []
@@ -181,11 +174,10 @@ def main(args_lst=None, data_dir=None, output_dir=None, model_dir=None):
         
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Process scGPT tasks")
-    parser.add_argument('--data_dir', type=str, help="Directory for input data", default="/work/magroup/skrieger/LLOKI_datasets/Three-slices")
-    parser.add_argument('--output_dir', type=str, help="Directory for saving output",default="/home/apdeshpa/projects/p1alignment/repov2/LLOKI/output")
-    parser.add_argument('--model_dir', type=str, help="Directory for model", default="/work/magroup/skrieger/scGPT/model")
-    
-    parser.add_argument('--name', type=str, default='merfish500', help="Name for this run")
+    parser.add_argument('--data_dir', type=str, required=True, help="Directory for input data")
+    parser.add_argument('--output_dir', type=str, required=True, help="Directory for saving output")
+    parser.add_argument('--model_dir', type=str, required=True, help="Directory for model")    
+    parser.add_argument('--name', type=str, default='merfish1100', help="Name for this run")
     parser.add_argument('--k', type=int, default=40, help="K for KNN")
     parser.add_argument('--iter', type=int, default=40, help="Number of iterations")
     parser.add_argument('--alpha', type=float, default=0.5, help="Alpha parameter")
