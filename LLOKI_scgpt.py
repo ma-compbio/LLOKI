@@ -92,7 +92,7 @@ def main(args_lst=None, data_dir=None, output_dir=None, model_dir=None):
     else:
         print("CUDA is not available.")
     
-    # h5ad_files = glob.glob(os.path.join(data_dir, '*.h5ad'))
+    h5ad_files = glob.glob(os.path.join(data_dir, '*.h5ad'))
     torch.set_num_threads(3)
     imputed_ari_list, imputed_nmi_list, imputed_ca_list = [], [], []
     reduced_ari_list, reduced_nmi_list, reduced_ca_list = [], [], []
@@ -111,8 +111,6 @@ def main(args_lst=None, data_dir=None, output_dir=None, model_dir=None):
         file = set_filename(args)
 
         adata = ad.read_h5ad(args.data_path)
-        # if "xenium" in h5ad_file:  #### Just for testing
-        #     adata=spatially_aware_splitting(adata,5)[0]
         if "subclass" not in adata.obs:
             if "Sub_molecular_cell_type" not in adata.obs:
                 adata.obs["subclass"]=adata.obs["class"]   
