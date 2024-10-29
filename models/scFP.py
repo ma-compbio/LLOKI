@@ -1,7 +1,7 @@
 import torch
 import copy
 from embedder import embedder
-from misc.graph_construction import  knn_graph, create_combined_graph
+from misc.graph_construction import  create_spatially_weighted_knn_graph, knn_graph, create_combined_graph
 import numpy as np
 from sklearn.decomposition import PCA
 import os
@@ -118,14 +118,26 @@ class scFP_Trainer(embedder):
 
     
     def train(self):
-        # Convert adata.X to dense format if necessary
-        cell_data = self.adata.X.toarray() if scipy.sparse.issparse(self.adata.X) else self.adata.X.copy()
+
+
     
         ### Start of OT implementation ###
     
-        # 1. Calculate sparsity per cell for scRNA-seq data (reference)
-        adata_scrna = sc.read_h5ad('/work/magroup/ehaber/UCE/data/MERFISH_BICCN/scref_full.h5ad')  # Update with your path
-        sparsity_scrna = self.calculate_sparsity(adata_scrna)
+        if not hasattr(self,"adata_scrna"):
+            # 1. Calculate sparsity per cell for scRNA-seq data (reference)        
+            self.adata_scrna = sc.read_h5ad('/work/magroup/ehaber/UCE/data/MERFISH_BICCN/scref_full.h5ad')  # Update with your path
+            
+            ### SUBSET GENES adata.var_names 
+            self.adata_scrna = self.adata_scrna[:, self.adata_scrna.var_names.isin(self.adata.var_names)]        
+        self.adata = self.adata[:, self.adata.var_names.isin(self.adata_scrna.var_names)]        
+        # self.adata.obsm['denoised'] = self.adata.X
+        # return [None, None, None],[None,None,None]
+
+        # Convert adata.X to dense format if necessary
+        cell_data = self.adata.X.toarray() if scipy.sparse.issparse(self.adata.X) else self.adata.X.copy()
+    
+
+        sparsity_scrna = self.calculate_sparsity(self.adata_scrna)
         print('scRNA-seq sparsity:', sparsity_scrna)
     
         # 2. Calculate sparsity per cell for MERFISH data (to be adjusted)
@@ -182,9 +194,8 @@ class scFP_Trainer(embedder):
     
         # Hard Feature Propagation
         print('Start Hard Feature Propagation ...!')
-        edge_index, edge_weight = create_combined_graph(
-            cell_data, self.adata, self.args.k, self.device, gcn_norm=False, sym=True
-        )
+        # edge_index, edge_weight = knn_graph(cell_data, self.args.k, True, True)
+        edge_index, edge_weight = create_spatially_weighted_knn_graph(cell_data, self.adata, self.args.k, 'cuda', True, True)
 
         edge_index = edge_index.to(self.device)
         edge_weight = edge_weight.to(self.device)
@@ -204,26 +215,23 @@ class scFP_Trainer(embedder):
     
         # Soft Feature Propagation
         print('Start Soft Feature Propagation ...!')
-        edge_index_new, edge_weight_new = create_combined_graph(
-            denoised_matrix, self.adata, self.args.k, self.device, gcn_norm=False, sym=True
-        )
+        edge_index_new, edge_weight_new = create_spatially_weighted_knn_graph(denoised_matrix, self.adata, self.args.k, 'cuda', True, True)#knn_graph(denoised_matrix, self.args.k, True, True)
 
         edge_index_new = edge_index_new.to(self.device)
         edge_weight_new = edge_weight_new.to(self.device)
 
         
         print('Alpha value:', self.args.alpha)
-        self.model = FeaturePropagation(
-            num_iterations=self.args.iter,
+        self.model = FeaturePropagationOriginal(
+            num_iterations=1,
             adata=self.adata,
             mask=False,
-            alpha=self.args.alpha,
-            max_imputation_per_cell=max_imputation_per_cell_tensor,
+            alpha=1,
             trainer=self
         )
         self.model = self.model.to(self.device)
     
-        denoised_matrix = self.model(denoised_matrix, edge_index_new, edge_weight_new)
+        denoised_matrix = self.model(cell_data, edge_index_new, edge_weight_new)
         print('Post soft feature propagation')
 
         
@@ -236,11 +244,78 @@ class scFP_Trainer(embedder):
         self.adata.obsm['reduced'] = reduced
     
         # Optionally save the processed data
-        self.save_adata()
+        # self.save_adata()
     
         return self.evaluate()
 
-        
+
+class FeaturePropagationOriginal(torch.nn.Module):
+    def __init__(self, num_iterations, adata, mask, alpha=0.0, early_stopping=True, patience=15, trainer=None):
+        super(FeaturePropagationOriginal, self).__init__()
+        self.num_iterations = num_iterations
+        self.mask = mask
+        self.alpha = alpha
+        self.early_stopping = early_stopping
+        self.patience = patience
+        self.adata = adata
+        self.trainer = trainer 
+
+    def calc_avg_expression(self, adata):
+        if scipy.sparse.issparse(adata.X):
+            data = adata.X.toarray()
+        else:
+            data = adata.X
+    
+        gene_means = data.mean(axis=0)
+        return pd.Series(gene_means, index=adata.var_names)
+
+    def calc_pearson_corr(self, merf, adata):
+        scrna = sc.read_h5ad('/work/magroup/ehaber/UCE/data/sc_ref/scref_500gene.h5ad')
+        scrna = scrna[~scrna.obs['class'].isna()].copy()
+        labels = list(set(scrna.obs['class']) & set(adata.obs['class']))
+
+        for label in labels:
+            scrna_subset = scrna[scrna.obs['class'] == label]
+            merf_subset = adata[adata.obs['class'] == label]
+    
+            # Calculate average expression values
+            scrna_avg = self.calc_avg_expression(scrna_subset)  # Assume returns Series with gene names as index
+            merf_avg = self.calc_avg_expression(merf_subset)   # Same assumption
+            pearson_corr = emd_samples(merf_avg, scrna_avg)
+            print(f'Pearson Correlation Coefficient for {label}: {pearson_corr:.4f}')
+        return pearson_corr
+
+    def forward(self, x, edge_index, edge_weight):
+        original_x = copy.copy(x)
+        nonzero_idx = torch.nonzero(x)
+        nonzero_i, nonzero_j = nonzero_idx.t()
+        scale = x.max()
+        out = x
+        n_nodes = x.shape[0]
+        adj = torch.sparse.FloatTensor(edge_index, values=edge_weight, size=(n_nodes, n_nodes)).to(edge_index.device)
+        adj = adj.float()
+
+        res = (1 - self.alpha) * out
+
+    
+        for i in range(self.num_iterations):
+            previous_out = out.clone()
+            out = torch.sparse.mm(adj, out)
+            change = torch.norm(out - previous_out)
+            
+            if self.mask:
+                out[nonzero_i, nonzero_j] = original_x[nonzero_i, nonzero_j]
+            else:
+                out.mul_(self.alpha).add_(res)
+
+            #print(out.max())
+            
+            # if (i + 1) % 5 == 0:
+            #     self.adata.X = out.detach().cpu().numpy()
+            #     self.trainer.save_adata(iteration=i + 1)  # Call save_adata using the trainer instance
+        # out *= scale
+        return out
+
 class FeaturePropagation(torch.nn.Module):
     def __init__(self, num_iterations, adata, mask, alpha=0.0, max_imputation_per_cell=None, early_stopping=True, patience=15, trainer=None):
         super(FeaturePropagation, self).__init__()
