@@ -28,9 +28,9 @@ import argparse
 
 def spatially_aware_splitting(adata, n_splits=2, method='spatial'):
     """ Split the AnnData object into subsets with a small overlap. """
-    # if adata.shape[0] <= 30000:
-    #     print('no batching')
-    #     return [adata]
+    if adata.shape[0] <= 40000:
+        print('no batching')
+        return [adata]
         
     if method == 'spatial':
         # Spatial splitting
