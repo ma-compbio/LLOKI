@@ -5,9 +5,8 @@
 LLOKI is a novel framework for scalable spatial transcriptomics (ST) integration across diverse technologies without requiring shared gene panels. The framework comprises two key components: 
 LLOKI-FP, which leverages optimal transport and feature propagation to perform a spatially informed transformation of ST gene expression profiles, aligning their sparsity with that of scRNA-seq to optimize the utility of scGPT embeddings; and LLOKI-CAE, a conditional autoencoder that integrates embeddings across ST technologies using a novel loss function that balances batch integration with the preservation of robust biological information from the LLOKI-FP embeddings. This unique combination ensures alignment of both features and batches, enabling robust ST data integration while preserving biological specificity and local spatial interactions.
 
-#Running LLOKI
-#Input Data Format
-Input Data Format
+# Running LLOKI
+# Input Data Format
 
 LLOKI requires spatial transcriptomics data to be provided as AnnData objects, structured as follows:
 
