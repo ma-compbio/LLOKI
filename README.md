@@ -13,7 +13,26 @@ LLOKI requires spatial transcriptomics data to be provided as AnnData objects, s
 Spatial Coordinates:
 The spatial coordinates of each cell should be included in the .obsm attribute of the AnnData object.
 The coordinates must be stored under .obsm['spatial'] and formatted as an array with dimensions [number of cells, 2] (representing x and y coordinates for each cell)
+
 Gene Expression Data:
 Gene expression data should be stored in .X as a sparse matrix (recommended for large datasets) or a dense matrix, with dimensions [number of cells, number of genes]
 
 While not required, any additional metadata (e.g., cell types, batch labels) can be stored in .obs
+
+# Installation
+
+Before installing any Python packages, we strongly recommend using Anaconda (please refer to the Anaconda webpage for conda installation instructions) to create a python 3.8 environment using the following command:
+
+conda install --name lloki python=3.8
+
+After creating the environment, activate it using:
+
+conda activate lloki
+
+## Dependencies
+
+Conda installations
+
+PyTorch (2.1.0) with CUDA (11.8)
+
+Users can install the necessary packages using requirements.txt 
