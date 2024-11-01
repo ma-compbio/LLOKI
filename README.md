@@ -21,6 +21,8 @@ While not required, any additional metadata (e.g., cell types, batch labels) can
 
 # Installation
 
+## Step 1: Create a Conda Environment
+
 Before installing any Python packages, we strongly recommend using Anaconda (please refer to the Anaconda webpage for conda installation instructions) to create a python 3.8 environment using the following command:
 
 conda install --name lloki python=3.8
@@ -29,10 +31,18 @@ After creating the environment, activate it using:
 
 conda activate lloki
 
-## Dependencies
+## Step 2: Install Dependencies
 
-Conda installations
+Install PyTorch with CUDA (optional)
 
-PyTorch (2.1.0) with CUDA (11.8)
+If you have an NVIDIA GPU and want to use CUDA for acceleration, install PyTorch with the desired CUDA version. For example, to install PyTorch 2.1.0 with CUDA 11.8, run:
 
-Users can install the necessary packages using requirements.txt 
+conda install pytorch==2.1.0 cudatoolkit=11.8 -c pytorch
+
+Note: For a CPU-only installation, you can omit the cudatoolkit argument.
+
+## Install Remaining Dependencies
+
+You can install all other necessary packages using the requirements.txt file included in the project:
+
+pip install -r requirements.txt
