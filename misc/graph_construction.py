@@ -65,7 +65,7 @@ def knn_graph(embeddings, k, gcn_norm=False, sym=True):
 
 
 def create_combined_graph(embeddings, adata, k, device, gcn_norm=False, sym=True):
-    knn_edge_index, knn_edge_weight = knn_graph(embeddings, k, gcn_norm=gcn_norm, sym=sym)
+    knn_edge_index, knn_edge_weight = knn_graph(embeddings, 100, gcn_norm=gcn_norm, sym=sym)
     
     # Normalize embeddings graph
     num_nodes = embeddings.size(0)
@@ -101,9 +101,9 @@ def create_combined_graph(embeddings, adata, k, device, gcn_norm=False, sym=True
             valid_distances = distances[valid_mask]
 
             #sort based on distance and selct top-k/2 neighbors
-            _, indices = torch.sort(distances)
+            _, indices = torch.sort(valid_distances)
             top_indices = indices[:int(k/2)]  
-            refined_adj_matrix[i, neighbors[top_indices]] = knn_adj_matrix[i, neighbors[top_indices]]
+            refined_adj_matrix[i, valid_neighbors[top_indices]] = knn_adj_matrix[i, valid_neighbors[top_indices]]
 
     #print(f"Non-zero elements in Refined adjacency matrix: {torch.nonzero(refined_adj_matrix, as_tuple=False).size(0)}")
 
@@ -154,3 +154,55 @@ def apply_gcn_normalization(adj_matrix):
     # Normalize adjacency matrix with GCN normalization
     normalized_adj_matrix = deg_inv_sqrt.mm(adj_matrix).mm(deg_inv_sqrt)
     return normalized_adj_matrix
+
+
+
+def create_spatially_weighted_knn_graph(embeddings, adata, k, device, gcn_norm=False, sym=True):
+    knn_edge_index, knn_edge_weight = knn_graph(embeddings, k, gcn_norm=gcn_norm, sym=sym)
+    
+    # Normalize embeddings graph
+    num_nodes = embeddings.size(0)
+    knn_adj_matrix = torch.zeros((num_nodes, num_nodes), device=device)
+    knn_adj_matrix[knn_edge_index[0], knn_edge_index[1]] = knn_edge_weight
+
+    
+
+    
+    refined_adj_matrix = torch.zeros_like(knn_adj_matrix)
+    spatial_coords=torch.tensor(adata.obsm["spatial"]).to(embeddings.device)
+
+
+    # Refine KNN neighbors based on spatial distances
+    p1=list(np.random.choice(list(range(num_nodes)),100))
+    p2=list(np.random.choice(list(range(num_nodes)),100))
+    avg_dist=((spatial_coords[p2]-spatial_coords[p1])**2).sum(-1).sqrt().mean()
+
+    avg_dist=avg_dist
+
+
+    for i in range(num_nodes):
+        neighbors = knn_edge_index[1][knn_edge_index[0] == i]
+        if len(neighbors) > 0:
+            distances=spatial_coords[neighbors]-spatial_coords[i]
+            distances=(distances**2).sum(-1).sqrt()
+            distance_weighting=torch.exp(-1*(distances**2)/(2*avg_dist*avg_dist))
+            refined_adj_matrix[i, neighbors] = distance_weighting.float()
+            refined_adj_matrix[i,i]=1.0
+    
+    combined_adj_matrix = refined_adj_matrix
+
+    # Symmetrization and GCN normalization
+    if sym:
+        combined_adj_matrix = (combined_adj_matrix + combined_adj_matrix.t()) / 2
+
+    if gcn_norm:
+        combined_adj_matrix = apply_gcn_normalization(combined_adj_matrix)
+
+
+    # Convert combined adjacency matrix back to sparse format and extract indices and weights
+    combined_sparse_matrix = combined_adj_matrix.to_sparse().coalesce()
+    combined_edge_index = combined_sparse_matrix.indices().detach()
+    combined_edge_weight = combined_sparse_matrix.values().detach()
+
+    
+    return combined_edge_index, combined_edge_weight
