@@ -46,3 +46,13 @@ Note: For a CPU-only installation, you can omit the cudatoolkit argument.
 You can install all other necessary packages using the requirements.txt file included in the project:
 
 pip install -r requirements.txt
+
+# Running Code
+
+To run our method, you need to run the pipeline in two parts: first LLOKI-FP and then LLOKI-CAE. 
+
+To run our code for LLOKI-FP, you first want to run LLOKI_scgpt.py, which takes as input your ST anndata object. 
+
+Next, LLOKI-CAE uses the output cell embeddings from LLOKI-FP as cell features in the conditional autoencoder. We have a tutorial notebook you can follow to integrate the output LLOKI-FP embeddings for different ST slices in order to perform slice integration. 
+
+
