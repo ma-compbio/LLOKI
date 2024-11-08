@@ -5,11 +5,11 @@ import scanpy as sc
 import numpy as np
 import pandas as pd
 from argument import printConfig, config2string
-from misc.utils import drop_data
+from lloki.utils import drop_data
 from sklearn.metrics import mean_squared_error
 import scipy
 from sklearn.cluster import KMeans
-from misc.utils import imputation_error, cluster_acc
+from lloki.utils import imputation_error, cluster_acc
 from sklearn.metrics.cluster import silhouette_score, adjusted_rand_score, normalized_mutual_info_score
 from sklearn.preprocessing import LabelEncoder
 

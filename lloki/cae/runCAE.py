@@ -1,36 +1,19 @@
 import os
 import sys
-import random
-import datetime
-import numpy as np
-import pandas as pd
-import scipy
-from scipy.sparse import csr_matrix, vstack
-import matplotlib.pyplot as plt
-import tqdm
+
 import anndata as ad
-import scanpy as sc
-from sklearn.metrics import adjusted_rand_score, normalized_mutual_info_score, silhouette_score
-import torch
-import torch.nn.functional as F
-import torch.distributed as dist
-from torch_geometric.nn.inits import glorot, zeros
-from pathlib import Path
-from models import scFP_Trainer
-from misc.utils import set_seed, set_filename, setup_logger
-from argument import parse_args
-import scgpt as scg
-import importlib
-from scipy.sparse import csr_matrix, vstack
-from sklearn.preprocessing import LabelEncoder
-from anndata import concat as ad_concat
-from conditional_autoencoder import ConditionalAutoencoder, ConditionalAutoencoderML
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-import torch
 import matplotlib.pyplot as plt
-from sklearn.neighbors import NearestNeighbors
 import numpy as np
-import anndata
+import scanpy as sc
+import torch
+from lloki.cae.conditional_autoencoder import ConditionalAutoencoderML
+from sklearn.preprocessing import LabelEncoder
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+import matplotlib.pyplot as plt
+import numpy as np
+import torch
+from sklearn.neighbors import NearestNeighbors
 
 high_level_mapping = {
     'Microglia': {
@@ -88,10 +71,6 @@ def map_to_high_level(row, mapping):
             return high_level
     return 'Other/Unannotated'
 
-
-# def concatenate_anndata(adata_list):
-#     concatenated_adata = ad_concat(adata_list, axis=0)
-#     return concatenated_adata
 
 def concatenate_anndata(adata_list, subsample_percent=None):
     for ad in slices:
@@ -248,64 +227,6 @@ def triplet_loss(latents_list, mutual_pairs, margin=1.0):
     
     return loss
 
-'''
-# Function to compute neighborhood preservation loss
-def neighborhood_preservation_loss(latent_embeddings, neighbor_indices, original_distances, chunk_indices):
-    """
-    Compute the neighborhood preservation loss for the current chunk.
-    :param latent_embeddings: Latent embeddings for the current chunk.
-    :param neighbor_indices: Neighbor indices (global indices).
-    :param original_distances: Original distances (from the full dataset).
-    :param chunk_indices: The global indices of the current chunk.
-    :return: Neighborhood preservation loss.
-    """
-    print(f'chunk_indices: {chunk_indices}')
-    # Create a mapping from global to chunk-specific indices
-    chunk_indices = chunk_indices.cpu().numpy()
-    adjusted_neighbor_indices = []
-    
-    # Loop over each row in neighbor_indices
-    for row in neighbor_indices:
-        adjusted_row = []
-        for global_idx in row:
-            if int(global_idx) in chunk_indices:
-                # Get the position of the global_idx in chunk_indices
-                # print('its here')
-                chunk_idx_position = np.where(chunk_indices == int(global_idx))[0]
-                if len(chunk_idx_position) > 0:
-                    adjusted_row.append(chunk_idx_position[0])  # Add the relative index in the chunk
-                else:
-                    adjusted_row.append(-1)  # Handle the edge case where it's not found
-            else:
-                adjusted_row.append(-1)  # Invalid neighbor (not in the chunk)
-        adjusted_neighbor_indices.append(adjusted_row)
-
-    # Convert adjusted indices to tensor
-    adjusted_neighbor_indices = torch.tensor(adjusted_neighbor_indices, dtype=torch.long, device=latent_embeddings.device)
-    print(f'adjusted_neighbor_indices: {adjusted_neighbor_indices}')
-    # Filter out invalid neighbors (-1)
-    valid_mask = adjusted_neighbor_indices != -1
-    adjusted_neighbor_indices = adjusted_neighbor_indices[valid_mask].view(latent_embeddings.size(0), -1)
-    print(f'adjusted_neighbor_indices: {adjusted_neighbor_indices}')
-    original_distances = original_distances[valid_mask].view(latent_embeddings.size(0), -1)
-    print(f'original_distances: {original_distances}')
-
-    # Get neighbors' latent embeddings using the adjusted indices
-    neighbors = latent_embeddings[adjusted_neighbor_indices]
-
-    # Compute distances in latent space
-    anchors = latent_embeddings.unsqueeze(1)  # [batch_size, 1, embedding_size]
-    latent_distances = torch.norm(anchors - neighbors, dim=2)  # [batch_size, num_neighbors]
-    print(latent_distances)
-
-    # Compute squared differences between latent and original distances
-    distance_diffs = (latent_distances - original_distances) ** 2
-    print(f'distance diffs: {distance_diffs}')
-
-    # Compute and return the loss
-    loss = distance_diffs.mean()
-    return loss
-'''
 def neighborhood_preservation_loss(latent_embeddings, neighbor_indices, original_distances, chunk_indices, n_neighbors=30):
     """
     Compute the neighborhood preservation loss for the current chunk, ensuring we always have a fixed number of valid neighbors.
@@ -318,30 +239,6 @@ def neighborhood_preservation_loss(latent_embeddings, neighbor_indices, original
     """
     # Ensure chunk_indices is a numpy array
     chunk_indices = chunk_indices.cpu().numpy()
-    '''
-    # Initialize the adjusted neighbor indices list
-    adjusted_neighbor_indices = []
-    adjusted_original_distances = []  # Keep track of corresponding original distances for valid neighbors
-    
-    # Loop over each row in neighbor_indices
-    for i, row in enumerate(neighbor_indices):  # Take extra neighbors initially
-        adjusted_row = []
-        adjusted_distances_row = []
-        for j, global_idx in enumerate(row):
-            if int(global_idx) in chunk_indices:
-                # Get the position of the global_idx in chunk_indices
-                chunk_idx_position = np.where(chunk_indices == int(global_idx))[0]
-                if len(chunk_idx_position) > 0:
-                    adjusted_row.append(chunk_idx_position[0])  # Add the relative index in the chunk
-                    adjusted_distances_row.append(original_distances[i][j])  # Add the corresponding distance
-            else:
-                adjusted_row.append(-1)  # Invalid neighbor (not in the chunk)
-                adjusted_distances_row.append(1000)  # Mark invalid distances as infinity
-
-        # Append valid rows
-        adjusted_neighbor_indices.append(adjusted_row)
-        adjusted_original_distances.append(adjusted_distances_row)
-    '''
     global_to_chunk_map = {int(global_idx): i for i, global_idx in enumerate(chunk_indices)}
     
     # Initialize placeholder tensors for adjusted neighbors and distances
@@ -403,39 +300,6 @@ def neighborhood_preservation_loss_old(latent_embeddings, neighbor_indices, orig
 
     loss = distance_diffs.mean()
     return loss
-import random
-'''
-def create_chunks(latent_embeddings, batch_labels, num_chunks):
-    """
-    Split data into chunks while ensuring each chunk has balanced samples from all batches.
-    :param latent_embeddings: Tensor of latent embeddings for all samples.
-    :param batch_labels: Tensor of batch labels corresponding to each sample in latent_embeddings.
-    :param num_chunks: Number of chunks to create.
-    :return: List of tensors where each tensor corresponds to a chunk of balanced latent embeddings.
-    """
-    unique_batches = torch.unique(batch_labels).tolist()
-    batch_indices = {b: torch.where(batch_labels == b)[0] for b in unique_batches}
-
-    # Shuffle the indices within each batch
-    for indices in batch_indices.values():
-        indices = indices[torch.randperm(indices.size(0))]
-
-    # Create chunks with balanced representation of each batch
-    chunks = []
-    for _ in range(num_chunks):
-        chunk_indices = []
-        for b in unique_batches:
-            # Split the indices of each batch evenly among the chunks
-            chunk_size_per_batch = batch_indices[b].size(0) // num_chunks
-            chunk_indices.append(batch_indices[b][:chunk_size_per_batch])
-            batch_indices[b] = batch_indices[b][chunk_size_per_batch:]
-
-        # Concatenate the indices from different batches to form the final chunk
-        chunk_indices = torch.cat(chunk_indices)
-        chunks.append(chunk_indices)
-
-    return chunks
-'''
 
 def create_chunks(device, batch_labels, num_chunks):
     """
@@ -592,16 +456,6 @@ def train_autoencoder_mnn_triplet(
     # Convert neighbor data to tensors
     neighbor_indices_tensor = torch.tensor(neighbor_indices, dtype=torch.long, device=device)
     original_distances_tensor = torch.tensor(neighbor_distances, dtype=torch.float32, device=device)
-
-    # nbrs = NearestNeighbors(n_neighbors=k_neighbors + 1, algorithm='auto', metric='euclidean').fit(original_embeddings)
-    # distances, indices = nbrs.kneighbors(original_embeddings)
-
-    # # Exclude self 
-    # neighbor_indices = indices[:, 1:]
-    # neighbor_distances = distances[:, 1:]  
-
-    # neighbor_indices_tensor = torch.tensor(neighbor_indices, dtype=torch.long, device=device)
-    # original_distances_tensor = torch.tensor(neighbor_distances, dtype=torch.float32, device=device)
 
     # Track the loss 
     train_losses = []
@@ -830,19 +684,6 @@ def train_autoencoder_mnn_triplet_prechunk(
     if verbose == True:
         print('Done finding neighbors for neighborhood loss')
     
-    # Convert neighbor data to tensors
-    
-
-    # nbrs = NearestNeighbors(n_neighbors=k_neighbors + 1, algorithm='auto', metric='euclidean').fit(original_embeddings)
-    # distances, indices = nbrs.kneighbors(original_embeddings)
-
-    # # Exclude self 
-    # neighbor_indices = indices[:, 1:]
-    # neighbor_distances = distances[:, 1:]  
-
-    # neighbor_indices_tensor = torch.tensor(neighbor_indices, dtype=torch.long, device=device)
-    # original_distances_tensor = torch.tensor(neighbor_distances, dtype=torch.float32, device=device)
-
     # Track the loss 
     train_losses = []
     autoencoder_losses = []
