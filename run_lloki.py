@@ -34,5 +34,10 @@ if __name__ == "__main__":
         with zipfile.ZipFile(os.path.join(data_parent_dir, "h5ads_all.zip"), 'r') as zip_ref:
             zip_ref.extractall(data_parent_dir)  # Unzip the contents into the parent directory
 
+    if not os.path.exists(args.model_dir):
+        model_parent_dir = os.path.dirname(args.model_dir)
+        os.makedirs(model_parent_dir, exist_ok=True)
+        gdown.download_folder(url="https://drive.google.com/drive/u/0/folders/1wdVnQWJswC4haO7gOKWZP7AESp5z4kkB",output=model_parent_dir)
+        
     run_lloki_fp(args)
     run_lloki_cae(args)
