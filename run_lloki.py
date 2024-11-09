@@ -22,6 +22,9 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    if not os.path.exists(args.output_dir):
+        os.makedirs(args.output_dir, exist_ok=True)
+
     if not os.path.exists(args.data_dir):
         # Ensure the parent directory of args.data_dir exists
         data_parent_dir = os.path.dirname(args.data_dir)
