@@ -74,7 +74,6 @@ def find_mutual_nearest_neighbors(embeddings_list, n_neighbors=50):
                             }
                         )
                         break
-    print(f"Mutual pairs found: {len(mutual_pairs)}")
     return mutual_pairs
 
 
@@ -155,6 +154,9 @@ def train_autoencoder_mnn_triplet_prechunk(
                 chunk_neighbor_indices[i],
                 chunk_neighbor_distances[i],
             )
+            if epoch >= pretrain_epochs and ((epoch - pretrain_epochs) % update_interval == 0 or mutual_pairs is None):
+                latents_np_list = [latent.detach().cpu().numpy() for latent in latents_list]
+                mutual_pairs = find_mutual_nearest_neighbors(latents_np_list, n_neighbors=knn)
             loss = (
                 autoencoder_loss + lamb_neighborhood * neighborhood_loss
                 if epoch < pretrain_epochs
@@ -233,6 +235,7 @@ def triplet_loss(latents_list, mutual_pairs, margin=1.0):
     """Computes the triplet loss"""
     # If there are no mutual pairs, return a zero loss
     if not mutual_pairs:
+        print('no mutual pairs found')
         return torch.tensor(0.0, device=latents_list[0].device, requires_grad=True)
 
     # Initialize lists to store anchor, positive, and negative embeddings

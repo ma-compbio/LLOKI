@@ -73,8 +73,8 @@ def map_to_high_level(row, mapping):
     return 'Other/Unannotated'
 
 
-def concatenate_anndata(adata_list, slices, subsample_percent=None):
-    for ad in slices:
+def concatenate_anndata(adata_list, subsample_percent=None):
+    for ad in adata_list:
     # Apply the function to create the high-level annotation
         ad.obs['high_level_annotation'] = ad.obs.apply(map_to_high_level, axis=1, mapping=high_level_mapping)
     # Concatenate the AnnData objects along the observation axis (cells)
@@ -170,7 +170,7 @@ def run_lloki_cae(args):
         s.obs['batch'] = i
 
     combined_batch = slices
-    concatenated_subgraph = concatenate_anndata(combined_batch,slices)
+    concatenated_subgraph = concatenate_anndata(combined_batch)
 
     subset_indices = np.arange(concatenated_subgraph.shape[0])
     data = prepare_data_for_training(concatenated_subgraph, subset_indices)
