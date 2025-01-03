@@ -47,7 +47,7 @@ def create_spatially_weighted_knn_graph(
     knn_adj[knn_index[0], knn_index[1]] = knn_weight
 
     refined_adj = torch.zeros_like(knn_adj)
-    spatial_coords = torch.tensor(adata.obsm["spatial"], device=device)
+    spatial_coords = torch.tensor(adata.obsm["spatial"], device=device, dtype=torch.float32)
     avg_dist = torch.cdist(
         spatial_coords[np.random.choice(spatial_coords.size(0), 100)],
         spatial_coords[np.random.choice(spatial_coords.size(0), 100)],
