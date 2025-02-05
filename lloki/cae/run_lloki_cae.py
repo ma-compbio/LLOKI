@@ -162,8 +162,8 @@ def run_lloki_cae(args):
         'enc_in_channels': 512,  
         'latent_dim': 512,
     })
-    batch_dim = 10
-    num_batches = 5
+    batch_dim = args2["batch_dim"]
+    num_batches = args2["num_batches"]
 
     slices = [sc.read(f'{args2["output_dir"]}/{f}') for f in os.listdir(args2["output_dir"]) if 'h5ad' in f]
     for i, s in enumerate(slices):
@@ -175,13 +175,17 @@ def run_lloki_cae(args):
     subset_indices = np.arange(concatenated_subgraph.shape[0])
     data = prepare_data_for_training(concatenated_subgraph, subset_indices)
     data = data.to(device)  # Move the data to the appropriate device
-    lamb_neighborhood = args2["npl_num_neighbors"]
+    lamb_neighborhood = args2["lambda_neighborhood"]
+    lamb = args2["lambda_triplet"]
+    lr = args2["lr"]
+    chunk_size = args2['batch_size']
+    num_epochs = args2['epochs']
 
     model = ConditionalAutoencoderML(enc_in_channels=args2['enc_in_channels'], 
                             batch_dim=batch_dim, latent_dim=128, hidden_dims=[256, 175], 
                             num_batches=num_batches).to(device)
 
-    model = train_autoencoder_mnn_triplet_prechunk(model, args, data, lr=0.0005, knn=40, epochs=50, pretrain_epochs=0, 
-                                        update_interval=1, lamb=0.5, lamb_neighborhood=lamb_neighborhood, chunk_size=4000, checkpoint_interval=1, margin=1)
+    model = train_autoencoder_mnn_triplet_prechunk(model, args, data, lr=lr, knn=40, epochs=num_epochs, pretrain_epochs=0, 
+                                        update_interval=1, lamb=lamb, lamb_neighborhood=lamb_neighborhood, chunk_size=chunk_size, checkpoint_interval=1, margin=1)
 
     evaluate_final(data, model, device, args)
