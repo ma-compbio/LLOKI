@@ -95,6 +95,7 @@ def train_autoencoder_mnn_triplet_prechunk(
     checkpoint_interval=25,
     checkpoint_start=0,
     ramp_up_epochs=10,
+    batch_dim=10,
 ):
     """Train the autoencoder with mutual nearest neighbor triplet loss."""
     device, optimizer = args.device, torch.optim.Adam(
@@ -195,7 +196,7 @@ def train_autoencoder_mnn_triplet_prechunk(
             checkpoint_dir = args.checkpoint_dir
             checkpoint_path = os.path.join(
                 checkpoint_dir,
-                f"model_epoch_{epoch+1+checkpoint_start}_{lamb_neighborhood}_0005_margin_1.pth",
+                f"model_epoch{epoch+1+checkpoint_start}_ln{lamb_neighborhood}_lt{lamb}_lr{lr}_bd{batch_dim}_bs{chunk_size}.pth",
             )
             torch.save(model.state_dict(), checkpoint_path)
             print(

@@ -19,6 +19,13 @@ if __name__ == "__main__":
     parser.add_argument('--seed', type=float, default=0, help="Seed")
     parser.add_argument('--device', type=str, default="cuda", help="CUDA device ID (default: 0)")
     parser.add_argument('--npl_num_neighbors', type=int, default=30, help="Number of neighbors for the neighborhood preservation loss")
+    parser.add_argument('--lambda_neighborhood', type=float, default=250, help="Lambda weighting the neighborhood preservation loss")
+    parser.add_argument('--lambda_triplet', type=float, default=0.2, help="Lambda weighting the triplet loss")
+    parser.add_argument('--lr', type=float, default=0.0005, help="Lambda weighting the triplet loss")
+    parser.add_argument('--epochs', type=int, default=50, help="Number of epochs for lloki-cae")
+    parser.add_argument('--batch_size', type=int, default=4000, help="Batch size for lloki-cae")
+    parser.add_argument('--batch_dim', type=int, default=10, help="Batch dim for conditional component in lloki-cae")
+    parser.add_argument('--num_batches', type=int, default=5, help="Number of different spatial technologies for lloki-cae")
 
     args = parser.parse_args()
 
