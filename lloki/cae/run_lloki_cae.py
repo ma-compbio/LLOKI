@@ -18,43 +18,58 @@ import torch
 
 high_level_mapping = {
     'Microglia': {
-        'RNA_nbclust_clusters_long': ['Microglia', 'Perivascular_macrophages'],
+        'RNA_nbclust_clusters_long': ['Microglia'],
         'Main_molecular_cell_type': ['Microglia'],
+        'subclass': [],
         'original_class': ['34 Immune']
     },
     'Astrocytes': {
         'RNA_nbclust_clusters_long': ['Astrocytes_Cortex_Hippocampus', 'Astrocytes_Thalamus_Hypothalamus'],
         'Main_molecular_cell_type': ['Astrocytes'],
-        'original_class': ['30 Astro-Epen']
+        'subclass': ['318 Astro-NT NN', '319 Astro-TE NN', '321 Astroependymal NN'],
+        'original_class': []
+        # 'original_class': ['30 Astro-Epen']
     },
     'Excitatory_neurons': {
-        'RNA_nbclust_clusters_long': ['Excitatory_neurons_Layer1_Piriform', 'Excitatory_neurons_Layer2_3', 'Excitatory_neurons_Layer4', 'Excitatory_neurons_Telencephalon', 'Excitatory_neurons_Layer5_6', 'Excitatory_neurons_Hippocampal_CA1', 'Excitatory_neurons_Hippocampal_CA2', 'Excitatory_neurons_Hippocampal_CA3'],
-        'Main_molecular_cell_type': ['Telencephalon projecting excitatory neurons'],
-        'original_class': ['01 IT-ET Glut', '02 NP-CT-L6b Glut', '03 OB-CR Glut', '13 CNU-HYa Glut', '18 TH Glut', '14 HY Glut', '19 MB Glut', '24 MY Glut', '17 MH-LH Glut', '16 HY MM Glut', '23 P Glut', '15 HY Gnrh1 Glut']
+        'RNA_nbclust_clusters_long': ['Excitatory_neurons_Layer1_Piriform', 'Excitatory_neurons_Layer2_3', 'Excitatory_neurons_Layer4', 'Excitatory_neurons_Layer5','Excitatory_neurons_Telencephalon', 
+                                      'Excitatory_neurons_Layer5_6', 'Excitatory_neurons_Layer6','Excitatory_neurons_Hippocampal_CA1', 'Excitatory_neurons_Hippocampal_CA2', 'Excitatory_neurons_Hippocampal_CA3', 
+                                      'Peptidergic_neurons', 'Excitatory_neurons_Amygdala', 'Excitatory_neurons_Di/mesencephalon', 'Cholinergic_neurons_Habenebula'],
+        'Main_molecular_cell_type': ['Telencephalon projecting excitatory neurons', 'Di- and mesencephalon excitatory neurons','Telencephalon projecting excitatory neurons',],
+        'subclass': [],
+        'original_class': ['01 IT-ET Glut', '02 NP-CT-L6b Glut', '03 OB-CR Glut', '13 CNU-HYa Glut', '18 TH Glut', '14 HY Glut', '19 MB Glut', '24 MY Glut', '17 MH-LH Glut', '16 HY MM Glut', '23 P Glut', '15 HY Gnrh1 Glut', '04 DG-IMN Glut']
     },
     'Inhibitory_neurons': {
-        'RNA_nbclust_clusters_long': ['Inhibitory_neurons_Amygdala', 'Inhibitory_neurons_Habenula_Hypothalamus', 'Inhibitory_neurons_Reticular_nucleus', 'Inhibitory_neurons_Habenula_Thalamus', 'Cck_interneurons', 'Interneurons'],
-        'Main_molecular_cell_type': ['Telencephalon inhibitory interneurons'],
+        'RNA_nbclust_clusters_long': ['Inhibitory_neurons_Amygdala', 'Inhibitory_neurons_Habenula_Hypothalamus', 'Inhibitory_neurons_Reticular_nucleus', 
+                                      'Inhibitory_neurons_Habenula_Thalamus', 'Cck_interneurons', 'Interneurons', 'Serotonergic_neurons',
+                                      'Telencephalon_inhibitory_neurons', 'Inhibitory_interneurons', 'D1_medium_spiny_neurons', 'D2_medium_spiny_neurons',],
+        'Main_molecular_cell_type': ['Telencephalon inhibitory interneurons', 'Peptidergic neurons', 'Di- and mesencephalon inhibitory neurons', 
+                                     'Telencephalon projecting inhibitory neurons', 'Olfactory inhibitory neurons',],
+        'subclass': [],
         'original_class': ['06 CTX-CGE GABA', '07 CTX-MGE GABA', '05 OB-IMN GABA', '08 CNU-MGE GABA', '09 CNU-LGE GABA', '11 CNU-HYa GABA', '12 HY GABA','20 MB GABA', '27 MY GABA']
     },
     'Oligodendrocytes': {
-        'RNA_nbclust_clusters_long': ['Oligodendrocytes_precursor_cells', 'Mature_oligodendrocytes', 'Commited_oligodendrocytes'],
+        'RNA_nbclust_clusters_long': ['Oligodendrocytes_precursor_cells', 'Mature_oligodendrocytes', 'Commited_oligodendrocytes', 'Myelin_forming_oligodendrocytes', 'Newly_formed_oligodendrocytes'],
         'Main_molecular_cell_type': ['Oligodendrocyte precursor cells', 'Oligodendrocytes'],
+        'subclass': [],
         'original_class': ['31 OPC-Oligo']
     },
     'Vascular_cells': {
-        'RNA_nbclust_clusters_long': ['Vascular_leptomeningeal_cells', 'Vascular_smooth_muscle_cells', 'Vascular_endothelial_cells'],
-        'Main_molecular_cell_type': ['Vascular and leptomeningeal cells', 'Vascular smooth muscle cells'],
+        'RNA_nbclust_clusters_long': ['Vascular_leptomeningeal_cells', 'Vascular_smooth_muscle_cells', 'Vascular_endothelial_cells', 'Perivascular_macrophages', 'Pericytes'],
+        'Main_molecular_cell_type': ['Vascular and leptomeningeal cells', 'Vascular smooth muscle cells', 'Pericytes', 'Choroid plexus epithelial cells', 'Vascular endothelial cells'],
+        'subclass': [],
         'original_class': ['33 Vascular']
     },
     'Ependymal_cells': {
-        'RNA_nbclust_clusters_long': ['Ependymal_cells'],
+        'RNA_nbclust_clusters_long': ['Ependymal_cells', 'Tanycytes', 'Choroid_plexus_epithelial_cells'],
         'Main_molecular_cell_type': ['Ependymal cells'],
-        'original_class': ['30 Astro-Epen']
+        'subclass': ['322 Tanycyte NN','323 Ependymal NN','325 CHOR NN'],
+        'original_class': []
+        # 'original_class': ['30 Astro-Epen']
     },
     'Other/Unannotated': {
-        'RNA_nbclust_clusters_long': ['Neuroblasts', 'Peptidergic_neurons', 'Serotonergic_neurons', 'Choroid_plexus_epithelial_cells', 'Tanycytes'],
+        'RNA_nbclust_clusters_long': ['Neuroblasts'],
         'Main_molecular_cell_type': ['Unannotated'],
+        'subclass': [],
         'original_class': []  # Add more classes here if needed
     }
 }
@@ -67,7 +82,10 @@ def map_to_high_level(row, mapping):
             return high_level
         if 'Main_molecular_cell_type' in row.index and row['Main_molecular_cell_type'] in annots['Main_molecular_cell_type']:
             return high_level
-        if 'original_class' in row.index and row['original_class'] in annots['original_class']:
+        if 'subclass' in row.index and row['subclass'] in annots['subclass']:
+        # if 'class' in row.index and row['class'] in annots['original_class']:
+            return high_level
+        if 'class' in row.index and row['class'] in annots['original_class']:
         # if 'class' in row.index and row['class'] in annots['original_class']:
             return high_level
     return 'Other/Unannotated'
