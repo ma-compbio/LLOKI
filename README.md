@@ -1,6 +1,7 @@
 # Overview of LLOKI
 
-![LLOKI Framework](https://github.com/user-attachments/assets/5ab3fa0f-91c7-428e-9085-25df9e1cf321)
+![LLOKI recovered-5](https://github.com/user-attachments/assets/579abb41-2d58-49ca-928c-487f8deea9cc)
+
 
 LLOKI is a novel framework designed for scalable spatial transcriptomics (ST) integration across diverse technologies without requiring shared gene panels. The framework consists of two key components:
 
