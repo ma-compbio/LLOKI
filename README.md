@@ -61,6 +61,9 @@ conda install pytorch==2.1.0 cudatoolkit=11.8 -c pytorch
 
 For a CPU-only installation, simply omit the `cudatoolkit` argument.
 
+#### Install flash attention (Optional)
+pip install flash-attn --no-build-isolation
+
 #### Install Remaining Dependencies
 Install the remaining required packages using the provided `requirements.txt` file:
 
