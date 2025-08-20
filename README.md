@@ -56,10 +56,10 @@ conda activate lloki
 If you have an NVIDIA GPU and want to use CUDA for acceleration, install PyTorch with the desired CUDA version. For example, to install PyTorch 2.1.0 with CUDA 11.8:
 
 ```bash
-conda install pytorch==2.1.0 cudatoolkit=11.8 -c pytorch
+pip install torch==2.3.0 torchvision==0.18.0 torchaudio==2.3.0 \
+  --index-url https://download.pytorch.org/whl/cu121
 ```
 
-For a CPU-only installation, simply omit the `cudatoolkit` argument.
 
 #### Install flash attention (Optional)
 
