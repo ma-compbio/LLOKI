@@ -83,7 +83,7 @@ def propagate(adata, adata_scrna, args):
         denoised_matrix, adata, args.k, device, True, True
     )
     model = FeaturePropagation(
-        num_iterations=1, adata=adata, mask=False, alpha=1, device=device
+        num_iterations=1, adata=adata, mask=False, alpha=args.alpha, device=device
     ).to(device)
 
     denoised_matrix=model(cell_data, edge_index.to(device), edge_weight.to(device))

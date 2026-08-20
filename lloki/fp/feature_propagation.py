@@ -11,6 +11,7 @@ class FeaturePropagation(torch.nn.Module):
         max_imputation_per_cell=None,
         early_stopping=True,
         patience=15,
+        tol=1e-4,
         device="cuda",
     ):
         super(FeaturePropagation, self).__init__()
@@ -19,6 +20,7 @@ class FeaturePropagation(torch.nn.Module):
         self.alpha = alpha
         self.early_stopping = early_stopping
         self.patience = patience
+        self.tol = tol
         self.adata = adata
         self.max_imputation_per_cell = max_imputation_per_cell
         self.device = device
@@ -46,6 +48,7 @@ class FeaturePropagation(torch.nn.Module):
             imputation_mask = torch.zeros_like(x, dtype=torch.bool, device=device)
             max_imputation_per_cell = self.max_imputation_per_cell.to(device)
 
+        stall_count = 0
         for i in range(self.num_iterations):
             previous_x = x.clone()
             x = torch.sparse.mm(adj, x)  # Feature propagation step
@@ -74,6 +77,10 @@ class FeaturePropagation(torch.nn.Module):
                             ]
                             x[cell_idx, genes_to_reset] = 0
                             imputation_mask[cell_idx, genes_to_reset] = False
+
+                    # Stop once every cell has reached its imputation target
+                    if (imputation_mask.sum(dim=1) >= max_imputation_per_cell).all():
+                        break
                 else:
                     nonzero_idx = torch.nonzero(original_x)
                     nonzero_i, nonzero_j = nonzero_idx.t()
@@ -81,8 +88,14 @@ class FeaturePropagation(torch.nn.Module):
             else:
                 x.mul_(self.alpha).add_(res)
 
-            # Check for early stopping, if enabled
-            if self.early_stopping and torch.norm(x - previous_x) < self.patience:
-                break
+            # Check for early stopping, if enabled: stop once the update norm
+            # has stayed below `tol` for `patience` consecutive iterations
+            if self.early_stopping:
+                if torch.norm(x - previous_x) < self.tol:
+                    stall_count += 1
+                    if stall_count >= self.patience:
+                        break
+                else:
+                    stall_count = 0
 
         return x

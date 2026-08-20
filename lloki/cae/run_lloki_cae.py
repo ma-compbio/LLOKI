@@ -168,6 +168,7 @@ def evaluate_final(data, model, device, args):
     sc.pl.umap(adata, color=['class'])
     sc.pl.umap(adata, color=['batch'])  
     
+    os.makedirs(args.output_dir, exist_ok=True)
     plt.savefig(f"{args.output_dir}/cae_umap.png")
     return adata
 
@@ -203,7 +204,12 @@ def run_lloki_cae(args):
                             batch_dim=batch_dim, latent_dim=128, hidden_dims=[256, 175], 
                             num_batches=num_batches).to(device)
 
-    model = train_autoencoder_mnn_triplet_prechunk(model, args, data, lr=lr, knn=40, epochs=num_epochs, pretrain_epochs=0, 
-                                        update_interval=1, lamb=lamb, lamb_neighborhood=lamb_neighborhood, chunk_size=chunk_size, checkpoint_interval=1, margin=1)
+    pretrain_epochs = args2.get("pretrain_epochs", 0)
+    ramp_up_epochs = args2.get("ramp_up_epochs", 10)
+    cell_type_informed_triplet = args2.get("cell_type_informed_triplet", True)
+
+    model = train_autoencoder_mnn_triplet_prechunk(model, args, data, lr=lr, knn=40, epochs=num_epochs, pretrain_epochs=pretrain_epochs,
+                                        update_interval=1, lamb=lamb, lamb_neighborhood=lamb_neighborhood, chunk_size=chunk_size, checkpoint_interval=1, margin=1,
+                                        ramp_up_epochs=ramp_up_epochs, cell_type_informed_triplet=cell_type_informed_triplet)
 
     evaluate_final(data, model, device, args)
