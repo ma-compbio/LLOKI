@@ -17,6 +17,8 @@ def run_lloki_fp(args):
     # Limit CPU threads for PyTorch
     torch.set_num_threads(3)
 
+    os.makedirs(args.output_dir, exist_ok=True)
+
     # Load reference data for propagation
     adata_scrna = sc.read_h5ad(args.reference_data_path)  # Update path
 

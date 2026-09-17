@@ -45,8 +45,13 @@ def create_chunks(device, batch_labels, num_chunks):
     return chunks
 
 
-def find_mutual_nearest_neighbors(embeddings_list, n_neighbors=50):
-    """Find mutual nearest neighbors across batches."""
+def find_mutual_nearest_neighbors(embeddings_list, cell_types_list=None, n_neighbors=50):
+    """Find mutual nearest neighbors across batches.
+
+    When `cell_types_list` is provided, positive pairs are restricted to cells
+    sharing the same cell type across batches, per the cell-type-informed
+    triplet sampling described in the Supplemental Material.
+    """
     mutual_pairs = []
     for batch_i in range(len(embeddings_list)):
         for batch_j in range(batch_i + 1, len(embeddings_list)):
@@ -65,6 +70,12 @@ def find_mutual_nearest_neighbors(embeddings_list, n_neighbors=50):
             for i, neighbors_in_B in enumerate(indices_A_to_B):
                 for neighbor_in_B in neighbors_in_B:
                     if i in indices_B_to_A[neighbor_in_B]:
+                        if (
+                            cell_types_list is not None
+                            and cell_types_list[batch_i][i]
+                            != cell_types_list[batch_j][neighbor_in_B]
+                        ):
+                            continue
                         mutual_pairs.append(
                             {
                                 "batch_A": batch_i,
@@ -96,8 +107,16 @@ def train_autoencoder_mnn_triplet_prechunk(
     checkpoint_start=0,
     ramp_up_epochs=10,
     batch_dim=10,
+    cell_type_informed_triplet=True,
 ):
-    """Train the autoencoder with mutual nearest neighbor triplet loss."""
+    """Train the autoencoder with mutual nearest neighbor triplet loss.
+
+    `cell_type_informed_triplet` selects between the two triplet-sampling
+    strategies: when True (paper default), positive pairs are restricted to
+    matching cell types and negatives are hard-mined from a different cell
+    type in the same batch; when False, sampling falls back to plain mutual
+    nearest neighbors with a random negative from the anchor's batch.
+    """
     device, optimizer = args.device, torch.optim.Adam(
         model.parameters(), lr=lr, weight_decay=0.0001
     )
@@ -148,6 +167,14 @@ def train_autoencoder_mnn_triplet_prechunk(
                 latent_embeddings[chunk_batch_labels.squeeze() == b]
                 for b in unique_batches
             ]
+            if cell_type_informed_triplet:
+                chunk_cell_labels = data.cell[chunk_indices].to(device)
+                cell_types_list = [
+                    chunk_cell_labels[chunk_batch_labels.squeeze() == b]
+                    for b in unique_batches
+                ]
+            else:
+                cell_types_list = None
             recon_x = model.decode(latent_embeddings, chunk_batch_labels)
             autoencoder_loss = model.loss(recon_x, chunk_data)
             neighborhood_loss = neighborhood_preservation_loss_old(
@@ -157,14 +184,32 @@ def train_autoencoder_mnn_triplet_prechunk(
             )
             if epoch >= pretrain_epochs and ((epoch - pretrain_epochs) % update_interval == 0 or mutual_pairs is None):
                 latents_np_list = [latent.detach().cpu().numpy() for latent in latents_list]
-                mutual_pairs = find_mutual_nearest_neighbors(latents_np_list, n_neighbors=knn)
+                cell_types_np_list = (
+                    [ct.detach().cpu().numpy() for ct in cell_types_list]
+                    if cell_types_list is not None
+                    else None
+                )
+                mutual_pairs = find_mutual_nearest_neighbors(
+                    latents_np_list, cell_types_np_list, n_neighbors=knn
+                )
+            # Linearly ramp the triplet loss weight from 0 to `lamb` over
+            # `ramp_up_epochs` epochs once pretraining ends, instead of
+            # switching straight to full weight.
+            if epoch < pretrain_epochs:
+                triplet_weight = 0.0
+            else:
+                ramp_progress = (epoch - pretrain_epochs + 1) / max(ramp_up_epochs, 1)
+                triplet_weight = lamb * min(1.0, ramp_progress)
             loss = (
                 autoencoder_loss + lamb_neighborhood * neighborhood_loss
                 if epoch < pretrain_epochs
                 else autoencoder_loss
-                + lamb
+                + triplet_weight
                 * triplet_loss(
-                    [latent for latent in latents_list], mutual_pairs, margin=margin
+                    [latent for latent in latents_list],
+                    mutual_pairs,
+                    cell_types_list=cell_types_list,
+                    margin=margin,
                 )
                 + lamb_neighborhood * neighborhood_loss
             )
@@ -185,7 +230,7 @@ def train_autoencoder_mnn_triplet_prechunk(
         if epoch % evaluate_interval == 0:
             (
                 print(
-                    f"Epoch {epoch+1}/{epochs}, Total Loss: {train_losses[-1]:.4f}, AE Loss: {autoencoder_losses[-1]:.4f}, Triplet Loss: {triplet_losses[-1]:.4f}, Neighborhood Loss: {neighborhood_losses[-1]:.4f}, Lambda Triplet: {lamb:.4f}"
+                    f"Epoch {epoch+1}/{epochs}, Total Loss: {train_losses[-1]:.4f}, AE Loss: {autoencoder_losses[-1]:.4f}, Triplet Loss: {triplet_losses[-1]:.4f}, Neighborhood Loss: {neighborhood_losses[-1]:.4f}, Lambda Triplet: {triplet_weight:.4f}"
                 )
                 if epoch >= pretrain_epochs
                 else print(
@@ -194,6 +239,7 @@ def train_autoencoder_mnn_triplet_prechunk(
             )
         if (epoch + 1) % checkpoint_interval == 0:
             checkpoint_dir = args.checkpoint_dir
+            os.makedirs(checkpoint_dir, exist_ok=True)
             checkpoint_path = os.path.join(
                 checkpoint_dir,
                 f"model_epoch{epoch+1+checkpoint_start}_ln{lamb_neighborhood}_lt{lamb}_lr{lr}_bd{batch_dim}_bs{chunk_size}.pth",
@@ -232,8 +278,13 @@ def plot_losses(
         plt.show()
 
 
-def triplet_loss(latents_list, mutual_pairs, margin=1.0):
-    """Computes the triplet loss"""
+def triplet_loss(latents_list, mutual_pairs, cell_types_list=None, margin=1.0):
+    """Computes the triplet loss.
+
+    When `cell_types_list` is provided, negatives are chosen via hard-negative
+    mining: the closest cell in the anchor's batch that belongs to a
+    different cell type than the anchor, per the Supplemental Material.
+    """
     # If there are no mutual pairs, return a zero loss
     if not mutual_pairs:
         print('no mutual pairs found')
@@ -255,18 +306,30 @@ def triplet_loss(latents_list, mutual_pairs, margin=1.0):
         anchor_embedding = latents_list[batch_A][index_A]
         positive_embedding = latents_list[batch_B][index_B]
 
-        # Get a random negative index from the same batch as the anchor
-        negative_index = torch.randint(
-            0, latents_list[batch_A].shape[0], (1,), device=latents_list[batch_A].device
-        )
-        negative_embedding = latents_list[batch_A][negative_index]
+        negative_embedding = None
+        if cell_types_list is not None:
+            anchor_cell_type = cell_types_list[batch_A][index_A]
+            diff_type_mask = cell_types_list[batch_A] != anchor_cell_type
+            if diff_type_mask.any():
+                # Hard negative: closest cell in the same batch with a different cell type
+                candidates = latents_list[batch_A][diff_type_mask]
+                distances = torch.norm(
+                    candidates - anchor_embedding.unsqueeze(0), dim=1
+                )
+                negative_embedding = candidates[torch.argmin(distances)]
+
+        if negative_embedding is None:
+            # Fall back to a random negative from the same batch (no cell-type
+            # info available, or no cell of a different type present)
+            negative_index = torch.randint(
+                0, latents_list[batch_A].shape[0], (1,), device=latents_list[batch_A].device
+            )
+            negative_embedding = latents_list[batch_A][negative_index].squeeze(0)
 
         # Store the embeddings
         anchors.append(anchor_embedding)
         positives.append(positive_embedding)
-        negatives.append(
-            negative_embedding.squeeze(0)
-        )  # Remove extra dimension from negative embedding
+        negatives.append(negative_embedding)
 
     # Stack the embeddings into tensors
     anchors = torch.stack(anchors)
